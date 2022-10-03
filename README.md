@@ -1,6 +1,6 @@
 # Loon
 
-working for Loon.IOS
+working for Loon IOS
 
 ### Remark:
 
