@@ -1,0 +1,7 @@
+#!name=Bitget分流
+
+DOMAIN-SUFFIX, bgstatic.com
+DOMAIN-SUFFIX, bitget.com
+DOMAIN-SUFFIX, bitget.online
+DOMAIN-SUFFIX, bitget.fit
+DOMAIN-SUFFIX, bitget.site
