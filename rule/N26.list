@@ -3,3 +3,9 @@
 DOMAIN-SUFFIX, tech26.de
 DOMAIN-SUFFIX, n26.com
 DOMAIN-SUFFIX, number26.de
+
+# Account switching, not under n26.com
+DOMAIN, n26.kontenwechsel.de
+
+# Legacy CDN under old brand
+DOMAIN, cdn.number26.de
