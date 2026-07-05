@@ -1,0 +1,11 @@
+#############################################
+# Coinbase
+
+DOMAIN-SUFFIX, coinbase.com
+
+#############################################
+# Coinbase - Extended
+
+DOMAIN-SUFFIX, coinbase.com
+DOMAIN-SUFFIX, base.app
+DOMAIN-SUFFIX, base.org
