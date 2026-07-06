@@ -1,0 +1,38 @@
+#############################################
+# CryptoExchange
+# UPDATED: 2026-07-06
+
+# Binance / 币安香港
+DOMAIN-SUFFIX, binance.com
+DOMAIN-SUFFIX, binance.info
+DOMAIN-SUFFIX, binance.vision
+DOMAIN-SUFFIX, bnbstatic.com
+
+# OKX / 欧意 / OKX HK
+DOMAIN-SUFFIX, okx.com
+DOMAIN-SUFFIX, okx.com.hk
+DOMAIN-SUFFIX, okx.ac
+DOMAIN-SUFFIX, okx.cab
+DOMAIN-SUFFIX, okx.reise
+DOMAIN-SUFFIX, coinall.ltd
+
+# Bitget
+DOMAIN-SUFFIX, bitget.com
+DOMAIN-SUFFIX, bitgetapp.com
+DOMAIN-SUFFIX, bitget.site
+DOMAIN-SUFFIX, bgbstatic.com
+DOMAIN-SUFFIX, bgstatic.com
+DOMAIN-SUFFIX, bitgetimg.com
+
+# Gate.io / Gate.com
+DOMAIN-SUFFIX, gate.com
+DOMAIN-SUFFIX, gate.io
+DOMAIN-SUFFIX, gateio.ws
+DOMAIN-SUFFIX, gateapi.io
+
+# Kraken / Kraken Pro
+DOMAIN-SUFFIX, kraken.com
+DOMAIN-SUFFIX, krak.app
+
+# Bybit
+DOMAIN-SUFFIX, bybit.com
