@@ -1,8 +1,11 @@
-/* 京东商品价格查询（Loon）：增删商品只需修改 PRODUCTS。 */
+/*
+ * 京东商品价格查询（Loon）：增删商品只需修改 PRODUCTS。
+ * sku 为可选项；建议填写，以避免每次运行都解析短链接。
+ */
 const PRODUCTS = [
-  { name: "海尔226L变频三门冰箱（一级节能）", url: "https://3.cn/35-YtBip?jkl=@Z3pXbB1PyU7@" },
-  { name: "海尔226L三门风冷变频冰箱", url: "https://3.cn/35Y-tTC8?jkl=@XD46A4hPdhs@" },
-  { name: "海龟5L VPSA医用制氧机", url: "https://3.cn/-35Yu02T?jkl=@WD5WQ2VgLBi@" }
+  { name: "海尔226L变频三门冰箱（一级节能）", sku: "100082201496", url: "https://3.cn/35-YtBip?jkl=@Z3pXbB1PyU7@" },
+  { name: "海尔226L三门风冷变频冰箱", sku: "100312671808", url: "https://3.cn/35Y-tTC8?jkl=@XD46A4hPdhs@" },
+  { name: "海龟5L VPSA医用制氧机", sku: "100119459567", url: "https://3.cn/-35Yu02T?jkl=@WD5WQ2VgLBi@" }
 ];
 
 const HEADERS = {
@@ -12,9 +15,25 @@ const HEADERS = {
 
 function get(url, redirect) {
   return new Promise(function (resolve, reject) {
-    $httpClient.get({ url: url, headers: HEADERS, timeout: 10000, "auto-redirect": redirect, "auto-cookie": true }, function (error, response, data) {
+    $httpClient.get({ url: url, headers: HEADERS, timeout: 30000, "auto-redirect": redirect, "auto-cookie": true }, function (error, response, data) {
       if (error) return reject(new Error(String(error)));
       resolve({ response: response || {}, body: String(data || "") });
+    });
+  });
+}
+
+function wait(milliseconds) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, milliseconds);
+  });
+}
+
+function getWithRetry(url, redirect, retries) {
+  return get(url, redirect).catch(function (error) {
+    if (retries <= 0) throw error;
+    console.log("请求失败，2 秒后重试：" + error.message);
+    return wait(2000).then(function () {
+      return getWithRetry(url, redirect, retries - 1);
     });
   });
 }
@@ -55,13 +74,13 @@ function resolveSku(url, count) {
   const direct = skuFrom(url);
   if (direct) return Promise.resolve(direct);
   if (count >= 8) return Promise.reject(new Error("短链接重定向次数过多"));
-  return get(url, false).then(function (result) {
+  return getWithRetry(url, false, 1).then(function (result) {
     const status = Number(result.response.status || 0);
     const location = header(result.response.headers, "location");
     if (status >= 300 && status < 400 && location) return resolveSku(absoluteUrl(url, location), count + 1);
     const sku = skuFrom(result.body);
     if (sku) return sku;
-    return get(url, true).then(function (followed) {
+    return getWithRetry(url, true, 1).then(function (followed) {
       const followedSku = skuFrom(followed.body);
       if (!followedSku) throw new Error("未能从商品链接识别 SKU");
       return followedSku;
@@ -69,27 +88,42 @@ function resolveSku(url, count) {
   });
 }
 
-function priceFor(sku) {
-  return get("https://p.3.cn/prices/mgets?type=1&skuIds=J_" + encodeURIComponent(sku), true).then(function (result) {
+function prepareProducts(products) {
+  return Promise.all(products.map(function (product) {
+    if (product.sku) return Promise.resolve(product);
+    return resolveSku(product.url, 0).then(function (sku) {
+      return { name: product.name, sku: sku, url: product.url };
+    });
+  }));
+}
+
+function pricesFor(products) {
+  const skuIds = products.map(function (product) {
+    return "J_" + product.sku;
+  }).join(",");
+  const priceUrl = "https://p.3.cn/prices/mgets?type=1&skuIds=" + encodeURIComponent(skuIds);
+
+  return getWithRetry(priceUrl, true, 2).then(function (result) {
     let data;
     try { data = JSON.parse(result.body); } catch (error) { throw new Error("价格接口返回内容无法解析"); }
-    const price = data && data[0] && data[0].p;
-    if (!price || price === "-1" || Number(price) <= 0) throw new Error("未获取到有效价格");
-    return String(price);
+    const prices = {};
+    (data || []).forEach(function (item) {
+      prices[String(item.id || "").replace(/^J_/, "")] = item.p;
+    });
+
+    return products.map(function (product) {
+      const price = prices[product.sku];
+      if (!price || price === "-1" || Number(price) <= 0) {
+        return product.name + "：未获取到价格";
+      }
+      return product.name + "：¥" + price;
+    });
   });
 }
 
-function check(product) {
-  return resolveSku(product.url, 0).then(priceFor).then(function (price) {
-    return product.name + "：¥" + price;
-  }).catch(function (error) {
-    console.log(product.name + " 查询失败：" + error.message);
-    return product.name + "：查询失败";
-  });
-}
-
-Promise.all(PRODUCTS.map(check)).then(function (lines) {
+prepareProducts(PRODUCTS).then(pricesFor).then(function (lines) {
   $notification.post("京东商品价格", "共查询 " + PRODUCTS.length + " 件商品", lines.join("\n"), { openUrl: PRODUCTS[0].url });
 }).catch(function (error) {
+  console.log("京东价格查询失败：" + error.message);
   $notification.post("京东商品价格", "查询异常", String(error.message || error));
 }).then(function () { $done(); });
