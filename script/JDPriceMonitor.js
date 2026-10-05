@@ -13,9 +13,19 @@ const HEADERS = {
   Accept: "text/html,application/xhtml+xml,application/json"
 };
 
-function get(url, redirect) {
+function get(url, redirect, node) {
   return new Promise(function (resolve, reject) {
-    $httpClient.get({ url: url, headers: HEADERS, timeout: 30000, "auto-redirect": redirect, "auto-cookie": true }, function (error, response, data) {
+    const options = {
+      url: url,
+      headers: HEADERS,
+      timeout: 30000,
+      "auto-redirect": redirect,
+      "auto-cookie": true,
+      alpn: "h1"
+    };
+    if (node) options.node = node;
+
+    $httpClient.get(options, function (error, response, data) {
       if (error) return reject(new Error(String(error)));
       resolve({ response: response || {}, body: String(data || "") });
     });
@@ -28,12 +38,12 @@ function wait(milliseconds) {
   });
 }
 
-function getWithRetry(url, redirect, retries) {
-  return get(url, redirect).catch(function (error) {
+function getWithRetry(url, redirect, retries, node) {
+  return get(url, redirect, node).catch(function (error) {
     if (retries <= 0) throw error;
-    console.log("请求失败，2 秒后重试：" + error.message);
+    console.log((node || "当前路由") + " 请求失败，2 秒后重试：" + error.message);
     return wait(2000).then(function () {
-      return getWithRetry(url, redirect, retries - 1);
+      return getWithRetry(url, redirect, retries - 1, node);
     });
   });
 }
@@ -74,13 +84,13 @@ function resolveSku(url, count) {
   const direct = skuFrom(url);
   if (direct) return Promise.resolve(direct);
   if (count >= 8) return Promise.reject(new Error("短链接重定向次数过多"));
-  return getWithRetry(url, false, 1).then(function (result) {
+  return getWithRetry(url, false, 1, "DIRECT").then(function (result) {
     const status = Number(result.response.status || 0);
     const location = header(result.response.headers, "location");
     if (status >= 300 && status < 400 && location) return resolveSku(absoluteUrl(url, location), count + 1);
     const sku = skuFrom(result.body);
     if (sku) return sku;
-    return getWithRetry(url, true, 1).then(function (followed) {
+    return getWithRetry(url, true, 1, "DIRECT").then(function (followed) {
       const followedSku = skuFrom(followed.body);
       if (!followedSku) throw new Error("未能从商品链接识别 SKU");
       return followedSku;
@@ -103,7 +113,10 @@ function pricesFor(products) {
   }).join(",");
   const priceUrl = "https://p.3.cn/prices/mgets?type=1&skuIds=" + encodeURIComponent(skuIds);
 
-  return getWithRetry(priceUrl, true, 2).then(function (result) {
+  return getWithRetry(priceUrl, true, 2, "DIRECT").catch(function (directError) {
+    console.log("DIRECT 访问价格接口失败，改用当前路由：" + directError.message);
+    return getWithRetry(priceUrl, true, 1);
+  }).then(function (result) {
     let data;
     try { data = JSON.parse(result.body); } catch (error) { throw new Error("价格接口返回内容无法解析"); }
     const prices = {};
